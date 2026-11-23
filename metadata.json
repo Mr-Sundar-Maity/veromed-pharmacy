@@ -1,0 +1,6 @@
+{
+  "name": "VeroMed",
+  "description": "Smart Medicine & Healthcare Assistance System with Patient Healthcare Platform, Pharmacy Management Platform, AI Prescription OCR, Interaction Checker, and ML Demand Forecasting.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

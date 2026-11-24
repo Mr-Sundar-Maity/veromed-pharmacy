@@ -1582,6 +1582,37 @@ export function createApiRouter(): express.Router {
     res.json({ ok: true });
   });
 
+  router.delete('/prescriptions/:id', authenticateRequest, requireRole('patient'), (req: AuthedRequest, res) => {
+    const prescription = db
+      .prepare('SELECT id, file_key, file_name FROM prescriptions WHERE id = ? AND patient_id = ?')
+      .get(req.params.id, req.user!.id) as
+      | { id: string; file_key: string; file_name: string }
+      | undefined;
+
+    if (!prescription) {
+      res.status(404).json({ error: 'Prescription not found.' });
+      return;
+    }
+
+    db.prepare('DELETE FROM prescriptions WHERE id = ? AND patient_id = ?').run(
+      prescription.id,
+      req.user!.id
+    );
+
+    const safeKey = path.basename(prescription.file_key);
+    if (safeKey === prescription.file_key) {
+      const filePath = path.resolve(UPLOADS_DIR, safeKey);
+      if (filePath.startsWith(UPLOADS_DIR + path.sep) && fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    logAudit(req.user!, 'prescription.delete', `prescription:${prescription.id}`, 'success', {
+      fileName: prescription.file_name,
+    });
+    res.json({ ok: true, deletedPrescriptionId: prescription.id });
+  });
+
   // ---------------------------------------------------------------------------
   // MODULE 6: Medical History & Document Organisation
   // ---------------------------------------------------------------------------

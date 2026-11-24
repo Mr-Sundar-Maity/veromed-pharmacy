@@ -97,6 +97,7 @@ export async function savePersistentState(databasePath: string, uploadsDir: stri
 
     if (fs.existsSync(uploadsDir)) {
       const files = fs.readdirSync(uploadsDir, { withFileTypes: true }).filter((entry) => entry.isFile());
+      const localFileKeys = files.map((file) => file.name);
       for (const file of files) {
         const filePath = path.join(uploadsDir, file.name);
         await pool.query(
@@ -105,6 +106,14 @@ export async function savePersistentState(databasePath: string, uploadsDir: stri
            ON CONFLICT (file_key) DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()`,
           [file.name, fs.readFileSync(filePath)]
         );
+      }
+      if (localFileKeys.length > 0) {
+        await pool.query(
+          'DELETE FROM veromed_uploaded_files WHERE NOT (file_key = ANY($1::text[]))',
+          [localFileKeys]
+        );
+      } else {
+        await pool.query('DELETE FROM veromed_uploaded_files');
       }
     }
   } finally {

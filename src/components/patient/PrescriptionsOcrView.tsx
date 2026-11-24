@@ -9,6 +9,7 @@ import {
   Navigation,
   ShieldAlert,
   Sparkles,
+  Trash2,
   Upload,
   XCircle,
 } from 'lucide-react';
@@ -140,6 +141,7 @@ export const PrescriptionsOcrView: React.FC<PrescriptionsOcrViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -385,6 +387,30 @@ export const PrescriptionsOcrView: React.FC<PrescriptionsOcrViewProps> = ({
     }
   }
 
+  async function handleDeletePrescription() {
+    if (!selectedRx || deleting) return;
+    const confirmed = window.confirm(
+      `Delete ${selectedRx.file_name}? This permanently removes the prescription, OCR data, and source file.`
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      await apiFetch(`/prescriptions/${encodeURIComponent(selectedRx.id)}`, {
+        method: 'DELETE',
+      });
+      setSelectedId(null);
+      setSuccessMsg('Prescription and its OCR data were permanently deleted.');
+      await loadPrescriptions();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to delete prescription.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   function renderConfidenceBadge(score: number) {
     const pct = Math.round((score ?? 0) * 100);
     const tone =
@@ -548,6 +574,7 @@ export const PrescriptionsOcrView: React.FC<PrescriptionsOcrViewProps> = ({
                   </h2>
                 </div>
 
+                <div className="flex flex-wrap items-center justify-end gap-2">
                 {selectedRx.ocr_status === 'draft_ready' ? (
                   <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
                     <AlertTriangle className="w-4 h-4" />
@@ -563,6 +590,16 @@ export const PrescriptionsOcrView: React.FC<PrescriptionsOcrViewProps> = ({
                     {selectedRx.ocr_status}
                   </span>
                 )}
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    onClick={() => void handleDeletePrescription()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 bg-white border border-red-200 hover:bg-red-50 rounded-lg cursor-pointer disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{deleting ? 'Deleting...' : 'Delete Prescription'}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Source Document Preview & Structured OCR Transcript */}

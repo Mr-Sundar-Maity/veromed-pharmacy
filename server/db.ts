@@ -2,9 +2,14 @@ import Database from 'better-sqlite3';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { restorePersistentState, savePersistentState } from './persistence';
 
-const DATA_DIR = path.resolve(process.cwd(), 'data');
+const configuredDataDir = process.env.VEROMED_DATA_DIR?.trim();
+const DATA_DIR = configuredDataDir
+  ? path.resolve(configuredDataDir)
+  : path.resolve(process.cwd(), 'data');
 export const UPLOADS_DIR = path.resolve(DATA_DIR, 'uploads');
+export const DATABASE_PATH = path.resolve(DATA_DIR, 'smartmed.db');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -13,9 +18,26 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-export const db = new Database(path.join(DATA_DIR, 'smartmed.db'));
+const restoredFromNeon = await restorePersistentState(DATABASE_PATH, UPLOADS_DIR);
+if (restoredFromNeon) {
+  console.log('Restored VeroMed database and uploads from Neon persistent storage.');
+}
+
+export const db = new Database(DATABASE_PATH);
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
+
+let persistenceQueue: Promise<void> = Promise.resolve();
+
+export function queuePersistentStateSave(): Promise<void> {
+  persistenceQueue = persistenceQueue
+    .catch(() => undefined)
+    .then(async () => {
+      db.pragma('wal_checkpoint(FULL)');
+      await savePersistentState(DATABASE_PATH, UPLOADS_DIR);
+    });
+  return persistenceQueue;
+}
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(16).toString('hex');

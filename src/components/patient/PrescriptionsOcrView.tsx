@@ -54,6 +54,62 @@ interface PrescriptionsOcrViewProps {
   onNavigate?: (tab: string) => void;
 }
 
+function structureRawTranscript(
+  rawText: string | null,
+  items: Array<{
+    medicineName: string;
+    strength: string;
+    dosage: string;
+    frequency: string;
+    durationDays: number;
+    instructions: string;
+  }>
+): { details: string; medicineLines: string[] } {
+  const normalized = (rawText || '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').trim();
+  if (!normalized) {
+    return {
+      details: 'No additional prescription details were transcribed.',
+      medicineLines: items.map((item) =>
+        [item.medicineName, item.strength, item.dosage, item.frequency, item.durationDays ? `${item.durationDays} days` : '', item.instructions]
+          .filter(Boolean)
+          .join(' · ')
+      ),
+    };
+  }
+
+  const positions = items
+    .map((item) => ({ item, index: normalized.toLowerCase().indexOf(item.medicineName.trim().toLowerCase()) }))
+    .filter((entry) => entry.item.medicineName.trim() && entry.index >= 0)
+    .sort((a, b) => a.index - b.index);
+
+  if (positions.length === 0) {
+    return {
+      details: items.length > 0
+        ? 'Additional raw details could not be separated reliably. Review the original document for confirmation.'
+        : normalized,
+      medicineLines: items.map((item) =>
+        [item.medicineName, item.strength, item.dosage, item.frequency, item.durationDays ? `${item.durationDays} days` : '', item.instructions]
+          .filter(Boolean)
+          .join(' · ')
+      ),
+    };
+  }
+
+  const details = normalized.slice(0, positions[0].index).replace(/[-–—·|,;:\s]+$/g, '').trim();
+  const medicineLines = positions.map((entry, index) => {
+    const end = positions[index + 1]?.index ?? normalized.length;
+    return normalized
+      .slice(entry.index, end)
+      .replace(/^[\s,;|–—-]+|[\s,;|–—-]+$/g, '')
+      .trim();
+  });
+
+  return {
+    details: details || 'No additional prescription details were stated.',
+    medicineLines,
+  };
+}
+
 export const PrescriptionsOcrView: React.FC<PrescriptionsOcrViewProps> = ({
   onScheduleActivated,
   autoOpenCamera = false,
@@ -121,6 +177,7 @@ export const PrescriptionsOcrView: React.FC<PrescriptionsOcrViewProps> = ({
   }, [autoOpenCamera]);
 
   const selectedRx = prescriptions.find((p) => p.id === selectedId) ?? null;
+  const structuredRawTranscript = structureRawTranscript(selectedRx?.raw_text ?? null, editableItems);
 
   async function refreshPharmacySuggestions(
     items: Array<{ medicineName: string; strength?: string }>
@@ -556,38 +613,31 @@ export const PrescriptionsOcrView: React.FC<PrescriptionsOcrViewProps> = ({
 
                     <section className="border-t border-slate-200 pt-2.5">
                       <p className="font-display font-bold uppercase tracking-wide text-[11px] text-teal-800">
-                        Medications ({editableItems.length})
+                        Other Prescription Details
                       </p>
-                      {editableItems.length > 0 ? (
-                        <ol className="mt-1.5 space-y-2 list-decimal list-inside">
-                          {editableItems.map((item) => (
-                            <li key={`transcript-${item.id}`} className="font-semibold text-slate-900">
-                              {item.medicineName || 'Unclear medicine'} {item.strength}
-                              <dl className="ml-4 mt-1 grid grid-cols-[76px_1fr] gap-x-2 gap-y-0.5 font-normal">
-                                <dt className="text-slate-500">Dosage</dt>
-                                <dd>{item.dosage || 'Not stated'}</dd>
-                                <dt className="text-slate-500">Frequency</dt>
-                                <dd>{item.frequency || 'Not stated'}</dd>
-                                <dt className="text-slate-500">Duration</dt>
-                                <dd>{item.durationDays ? `${item.durationDays} days` : 'Not stated'}</dd>
-                                <dt className="text-slate-500">Instructions</dt>
-                                <dd>{item.instructions || 'Not stated'}</dd>
-                              </dl>
-                            </li>
-                          ))}
-                        </ol>
-                      ) : (
-                        <p className="mt-1.5 text-slate-500">No medication lines were confidently extracted.</p>
-                      )}
+                      <p className="mt-1.5 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-slate-600">
+                        {structuredRawTranscript.details}
+                      </p>
                     </section>
 
                     <section className="border-t border-slate-200 pt-2.5">
                       <p className="font-display font-bold uppercase tracking-wide text-[11px] text-teal-800">
-                        Source Transcription
+                        Medicine Lines From Prescription
                       </p>
-                      <pre className="mt-1.5 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-slate-600">
-                        {selectedRx.raw_text || 'No raw transcript recorded.'}
-                      </pre>
+                      {structuredRawTranscript.medicineLines.length > 0 ? (
+                        <ol className="mt-2 space-y-1.5 list-decimal list-inside">
+                          {structuredRawTranscript.medicineLines.map((line, index) => (
+                            <li
+                              key={`${selectedRx.id}-raw-medicine-${index}`}
+                              className="rounded-md border border-slate-200 bg-white px-2.5 py-2 font-mono text-[11px] leading-relaxed text-slate-700"
+                            >
+                              {line}
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="mt-1.5 text-slate-500">No medicine lines were extracted.</p>
+                      )}
                     </section>
                   </div>
                 </div>

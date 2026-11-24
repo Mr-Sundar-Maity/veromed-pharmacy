@@ -156,6 +156,31 @@ export default function App() {
     };
   }, [user, sessionExpiresAt, sessionRememberMe]);
 
+  useEffect(() => {
+    if (!user || user.role !== 'patient' || !navigator.geolocation) return;
+    const requestKey = `veromed_location_requested_${user.id}`;
+    const locationKey = `veromed_location_${user.id}`;
+    if (window.localStorage.getItem(requestKey)) return;
+
+    window.localStorage.setItem(requestKey, 'true');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        window.localStorage.setItem(
+          locationKey,
+          JSON.stringify({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            capturedAt: new Date().toISOString(),
+          })
+        );
+        setActiveTab('pharmacy-locator');
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
+    );
+  }, [user]);
+
   async function handleLogout() {
     try {
       await apiFetch('/auth/logout', { method: 'POST' });
@@ -261,6 +286,7 @@ export default function App() {
           )}
           {activeTab === 'pharmacy-locator' && (
             <PharmacyLocatorView
+              userId={user.id}
               patientId={caregiverPatientId}
               isCaregiver={isCaregiver}
               onNavigate={setActiveTab}

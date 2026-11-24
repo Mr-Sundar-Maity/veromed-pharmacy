@@ -56,7 +56,7 @@ Write-Host "  DEPLOYMENT COMPLETE!" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Frontend: https://veromedphm.web.app" -ForegroundColor Yellow
-Write-Host "  Backend:  https://student-pass-fali-system.onrender.com" -ForegroundColor Yellow
+Write-Host "  Backend:  https://veromed-feap.onrender.com" -ForegroundColor Yellow
 Write-Host "  Note: Render auto-deploys backend from GitHub push." -ForegroundColor Yellow
 Write-Host ""
 Write-Host "  All done! Your Student Pass Fail System is live." -ForegroundColor Green

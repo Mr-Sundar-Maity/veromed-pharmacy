@@ -3113,16 +3113,16 @@ export function createApiRouter(): express.Router {
 
     const now = new Date().toISOString();
     if (status) {
-      if (!['active', 'suspended'].includes(status)) {
-        res.status(400).json({ error: 'Status must be active or suspended.' });
+      if (!['active', 'deactivated'].includes(status)) {
+        res.status(400).json({ error: 'Status must be active or deactivated.' });
         return;
       }
-      if (target.id === req.user!.id && status === 'suspended') {
+      if (target.id === req.user!.id && status === 'deactivated') {
         res.status(400).json({ error: 'An administrator cannot suspend their own active session.' });
         return;
       }
       db.prepare('UPDATE users SET status = ?, updated_at = ? WHERE id = ?').run(status, now, target.id);
-      if (status === 'suspended') {
+      if (status === 'deactivated') {
         db.prepare('DELETE FROM sessions WHERE user_id = ?').run(target.id);
       }
     }

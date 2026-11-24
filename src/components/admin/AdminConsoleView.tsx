@@ -133,7 +133,7 @@ export const AdminConsoleView: React.FC<{ activeTab: string }> = ({ activeTab })
   async function handleToggleUserStatus(user: UserRow) {
     setError(null);
     setNotice(null);
-    const nextStatus = user.status === 'active' ? 'suspended' : 'active';
+    const nextStatus = user.status === 'active' ? 'deactivated' : 'active';
     try {
       await apiFetch(`/admin/users/${encodeURIComponent(user.id)}`, {
         method: 'PATCH',

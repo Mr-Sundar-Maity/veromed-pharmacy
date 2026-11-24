@@ -56,7 +56,22 @@ Extract structured medication draft fields from the provided prescription docume
 Rules:
 1. Never invent medications that are not present in the source.
 2. Provide honest field-level confidence scores between 0.0 and 1.0 for medicineName, strength, dosage, and frequency. Lower the confidence (<0.75) if handwriting or scan quality is ambiguous.
-3. Preserve raw transcribed text in rawText.
+3. Preserve every legible source detail in rawText and format it as a readable clinical transcript using this exact section order:
+   PRESCRIPTION DETAILS
+   Patient: <value or Not stated>
+   Prescriber: <value or Not stated>
+   Date: <value or Not stated>
+
+   MEDICATIONS
+   1. <medicine name and strength>
+      Dosage: <value or Not stated>
+      Frequency: <value or Not stated>
+      Duration: <value or Not stated>
+      Instructions: <value or Not stated>
+
+   ADDITIONAL NOTES
+   <all other legible clinical text, registration details, signature text, or Not stated>
+   Do not add Markdown symbols, commentary, inferred diagnoses, or information absent from the source.
 4. Normalize durationDays to an integer number of days (default 30 if unspecified).
 5. Classify documentType (e.g. "Prescription", "Discharge Medication List", or "Non-Prescription Document").`;
 

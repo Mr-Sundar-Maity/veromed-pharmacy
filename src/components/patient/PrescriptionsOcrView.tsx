@@ -508,7 +508,7 @@ export const PrescriptionsOcrView: React.FC<PrescriptionsOcrViewProps> = ({
                 )}
               </div>
 
-              {/* Source Document Preview & Raw OCR Text */}
+              {/* Source Document Preview & Structured OCR Transcript */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
                   <div className="px-3 py-2 border-b border-slate-200 text-xs font-semibold text-slate-700 bg-white">
@@ -537,11 +537,59 @@ export const PrescriptionsOcrView: React.FC<PrescriptionsOcrViewProps> = ({
 
                 <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50 flex flex-col">
                   <div className="px-3 py-2 border-b border-slate-200 text-xs font-semibold text-slate-700 bg-white">
-                    Raw OCR Transcript
+                    Detailed OCR Transcript
                   </div>
-                  <pre className="p-3 text-xs font-mono text-slate-700 whitespace-pre-wrap overflow-y-auto h-56">
-                    {selectedRx.raw_text || 'No raw transcript recorded.'}
-                  </pre>
+                  <div className="p-3 overflow-y-auto h-56 space-y-3 text-xs text-slate-700">
+                    <section>
+                      <p className="font-display font-bold uppercase tracking-wide text-[11px] text-teal-800">
+                        Prescription Details
+                      </p>
+                      <dl className="mt-1.5 grid grid-cols-[82px_1fr] gap-x-2 gap-y-1">
+                        <dt className="font-semibold text-slate-500">File</dt>
+                        <dd className="font-medium text-slate-900 break-words">{selectedRx.file_name}</dd>
+                        <dt className="font-semibold text-slate-500">Prescriber</dt>
+                        <dd className="font-medium text-slate-900">{selectedRx.doctor_name || 'Not stated'}</dd>
+                        <dt className="font-semibold text-slate-500">Date</dt>
+                        <dd className="font-medium text-slate-900">{selectedRx.document_date || 'Not stated'}</dd>
+                      </dl>
+                    </section>
+
+                    <section className="border-t border-slate-200 pt-2.5">
+                      <p className="font-display font-bold uppercase tracking-wide text-[11px] text-teal-800">
+                        Medications ({editableItems.length})
+                      </p>
+                      {editableItems.length > 0 ? (
+                        <ol className="mt-1.5 space-y-2 list-decimal list-inside">
+                          {editableItems.map((item) => (
+                            <li key={`transcript-${item.id}`} className="font-semibold text-slate-900">
+                              {item.medicineName || 'Unclear medicine'} {item.strength}
+                              <dl className="ml-4 mt-1 grid grid-cols-[76px_1fr] gap-x-2 gap-y-0.5 font-normal">
+                                <dt className="text-slate-500">Dosage</dt>
+                                <dd>{item.dosage || 'Not stated'}</dd>
+                                <dt className="text-slate-500">Frequency</dt>
+                                <dd>{item.frequency || 'Not stated'}</dd>
+                                <dt className="text-slate-500">Duration</dt>
+                                <dd>{item.durationDays ? `${item.durationDays} days` : 'Not stated'}</dd>
+                                <dt className="text-slate-500">Instructions</dt>
+                                <dd>{item.instructions || 'Not stated'}</dd>
+                              </dl>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="mt-1.5 text-slate-500">No medication lines were confidently extracted.</p>
+                      )}
+                    </section>
+
+                    <section className="border-t border-slate-200 pt-2.5">
+                      <p className="font-display font-bold uppercase tracking-wide text-[11px] text-teal-800">
+                        Source Transcription
+                      </p>
+                      <pre className="mt-1.5 font-mono text-[11px] leading-relaxed whitespace-pre-wrap break-words text-slate-600">
+                        {selectedRx.raw_text || 'No raw transcript recorded.'}
+                      </pre>
+                    </section>
+                  </div>
                 </div>
               </div>
 

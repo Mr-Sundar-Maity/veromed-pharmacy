@@ -130,7 +130,7 @@ export async function apiFetch<T>(
     headers.set('Content-Type', 'application/json');
   }
 
-  const res = await fetch(`/api/v1${path}`, {
+  const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1${path}`, {
     ...options,
     headers,
   });

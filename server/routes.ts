@@ -299,9 +299,11 @@ export function createApiRouter(): express.Router {
       return;
     }
 
+    const userRole: UserRole = row.role || 'patient';
+
     const session = createSession(row.id, Boolean(rememberMe));
     logAudit(
-      { id: row.id, email: row.email, role: row.role },
+      { id: row.id, email: row.email, role: userRole },
       'auth.login',
       'session',
       'success',
@@ -320,7 +322,7 @@ export function createApiRouter(): express.Router {
         id: row.id,
         email: row.email,
         fullName: row.full_name,
-        role: row.role,
+        role: userRole,  // Always guaranteed (defaults to 'patient' if missing)
         pharmacyId: row.pharmacy_id,
       },
     });

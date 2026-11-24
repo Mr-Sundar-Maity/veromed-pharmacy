@@ -24,6 +24,23 @@ async function startServer() {
   const app = express();
   app.use(express.json({ limit: '4mb' }));
 
+  // CORS configuration for Firebase Hosting
+  const allowedOrigins = [
+    'https://veromedphm.web.app',
+    'http://localhost:5173'
+  ];
+
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    next();
+  });
+
   // Basic security headers
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');

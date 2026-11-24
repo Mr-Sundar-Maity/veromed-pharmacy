@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Cross, LoaderCircle, LocateFixed, MapPin, Navigation, Search } from 'lucide-react';
+import { apiFetch } from '../../types/api';
 
 interface Coordinates { latitude: number; longitude: number }
 interface PharmacyResult extends Coordinates { id: string; name: string; address: string; phone?: string; distanceKm: number }
@@ -56,10 +57,10 @@ export const PharmacyLocatorView: React.FC<Props> = ({ userId, isCaregiver = fal
     const load = async () => {
       setLoading(true); setError(null);
       try {
-        const q = `[out:json][timeout:25];(nwr["amenity"="pharmacy"](around:5000,${location.latitude},${location.longitude}););out center tags;`;
-        const response = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: new URLSearchParams({ data: q }), signal: controller.signal });
-        if (!response.ok) throw new Error('Nearby pharmacy service is temporarily unavailable.');
-        const data = await response.json() as { elements?: Array<{ type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }> };
+        const data = await apiFetch<{ elements?: Array<{ type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }> }>(
+          `/location/nearby-pharmacies?lat=${encodeURIComponent(location.latitude)}&lon=${encodeURIComponent(location.longitude)}`,
+          { signal: controller.signal }
+        );
         const results = (data.elements ?? []).map((item): PharmacyResult | null => {
           const latitude = item.lat ?? item.center?.lat; const longitude = item.lon ?? item.center?.lon;
           if (latitude === undefined || longitude === undefined) return null;
@@ -85,9 +86,10 @@ export const PharmacyLocatorView: React.FC<Props> = ({ userId, isCaregiver = fal
     const load = async () => {
       setRouteLoading(true); setRoute(null);
       try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${location.longitude},${location.latitude};${selected.longitude},${selected.latitude}?overview=full&geometries=geojson`;
-        const response = await fetch(url, { signal: controller.signal });
-        const data = await response.json() as { routes?: Array<{ distance: number; duration: number; geometry: { coordinates: Array<[number, number]> } }> };
+        const data = await apiFetch<{ routes?: Array<{ distance: number; duration: number; geometry: { coordinates: Array<[number, number]> } }> }>(
+          `/location/route?fromLat=${encodeURIComponent(location.latitude)}&fromLon=${encodeURIComponent(location.longitude)}&toLat=${encodeURIComponent(selected.latitude)}&toLon=${encodeURIComponent(selected.longitude)}`,
+          { signal: controller.signal }
+        );
         const best = data.routes?.[0];
         if (best) setRoute({ distanceKm: best.distance / 1000, durationMinutes: Math.max(1, Math.round(best.duration / 60)), coordinates: best.geometry.coordinates });
       } catch (reason) { if ((reason as Error).name !== 'AbortError') setRoute(null); }

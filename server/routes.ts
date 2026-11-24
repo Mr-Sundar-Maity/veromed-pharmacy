@@ -86,6 +86,26 @@ const upload = multer({
   },
 });
 
+async function fetchJsonWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 12_000): Promise<unknown> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'VeroMed-Pharmacy-Locator/1.0',
+        Accept: 'application/json',
+        ...init.headers,
+      },
+    });
+    if (!response.ok) throw new Error(`Upstream map service returned ${response.status}.`);
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function saveUploadedBuffer(buffer: Buffer, extHint: string): string {
   const safeExt = extHint.replace(/[^a-z0-9.]/gi, '').slice(0, 10) || '.bin';
   const fileKey = `${crypto.randomUUID()}${safeExt.startsWith('.') ? safeExt : `.${safeExt}`}`;
@@ -2675,6 +2695,64 @@ export function createApiRouter(): express.Router {
   // ---------------------------------------------------------------------------
   // MODULE 15: Nearby Pharmacy Locator & Medication Refill Requests
   // ---------------------------------------------------------------------------
+  router.get('/location/nearby-pharmacies', authenticateRequest, rateLimit('nearby_pharmacies', 20, 60_000), async (req, res) => {
+    const latitude = Number(req.query.lat);
+    const longitude = Number(req.query.lon);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      res.status(400).json({ error: 'Valid latitude and longitude are required.' });
+      return;
+    }
+
+    const query = `[out:json][timeout:20];(nwr["amenity"="pharmacy"](around:5000,${latitude},${longitude}););out center tags;`;
+    const endpoints = [
+      'https://overpass-api.de/api/interpreter',
+      'https://overpass.kumi.systems/api/interpreter',
+      'https://overpass.nchc.org.tw/api/interpreter',
+    ];
+    for (const endpoint of endpoints) {
+      try {
+        const data = await fetchJsonWithTimeout(endpoint, {
+          method: 'POST',
+          body: new URLSearchParams({ data: query }),
+        });
+        res.json(data);
+        return;
+      } catch {
+        // Try the next independent OpenStreetMap query mirror.
+      }
+    }
+    res.status(503).json({ error: 'Nearby pharmacy data is temporarily unavailable. Please retry in a moment.' });
+  });
+
+  router.get('/location/route', authenticateRequest, rateLimit('pharmacy_route', 40, 60_000), async (req, res) => {
+    const fromLat = Number(req.query.fromLat);
+    const fromLon = Number(req.query.fromLon);
+    const toLat = Number(req.query.toLat);
+    const toLon = Number(req.query.toLon);
+    const validLatitude = (value: number) => Number.isFinite(value) && value >= -90 && value <= 90;
+    const validLongitude = (value: number) => Number.isFinite(value) && value >= -180 && value <= 180;
+    if (!validLatitude(fromLat) || !validLatitude(toLat) || !validLongitude(fromLon) || !validLongitude(toLon)) {
+      res.status(400).json({ error: 'Valid route coordinates are required.' });
+      return;
+    }
+
+    const path = `${fromLon},${fromLat};${toLon},${toLat}?overview=full&geometries=geojson&steps=false`;
+    const endpoints = [
+      `https://router.project-osrm.org/route/v1/driving/${path}`,
+      `https://routing.openstreetmap.de/routed-car/route/v1/driving/${path}`,
+    ];
+    for (const endpoint of endpoints) {
+      try {
+        const data = await fetchJsonWithTimeout(endpoint);
+        res.json(data);
+        return;
+      } catch {
+        // Try the secondary routing service.
+      }
+    }
+    res.status(503).json({ error: 'Route calculation is temporarily unavailable. Please retry in a moment.' });
+  });
+
   router.get('/pharmacies/nearby', authenticateRequest, (req: AuthedRequest, res) => {
     const access = resolveAuthorizedPatientId(
       req.user!,

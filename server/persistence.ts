@@ -40,7 +40,11 @@ export async function initializePersistenceSchema(): Promise<void> {
 }
 
 export function neonPersistenceEnabled(): boolean {
-  return process.env.NODE_ENV === 'production' && Boolean(process.env.DATABASE_URL?.trim());
+  const isHostedProduction =
+    process.env.NODE_ENV === 'production' ||
+    process.env.RENDER === 'true' ||
+    process.env.ENABLE_NEON_PERSISTENCE === 'true';
+  return isHostedProduction && Boolean(process.env.DATABASE_URL?.trim());
 }
 
 export async function restorePersistentState(databasePath: string, uploadsDir: string): Promise<boolean> {
